@@ -343,7 +343,7 @@ byMaxFf <- function(values, bins) {
 #'
 #' @export
 normalizeCovariates <- function(covariates) {
-  if (nrow(covariates) == 0) {
+  if (is.null(covariates) || nrow(covariates) == 0) {
     return(covariates)
   } else {
     maxs <- byMaxFf(covariates$covariateValue, covariates$covariateId)
