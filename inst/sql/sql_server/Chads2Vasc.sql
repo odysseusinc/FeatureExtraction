@@ -27,14 +27,14 @@ SELECT DISTINCT 1,
 	c.concept_id
 FROM (
 	SELECT concept_id
-	FROM @cdm_database_schema.CONCEPT
+	FROM @cdm_database_schema.concept
 	WHERE concept_id IN (316139, 314378, 318773, 321319)
 		AND invalid_reason IS NULL
 	
 	UNION
 	
 	SELECT descendant_concept_id AS concept_id
-	FROM @cdm_database_schema.CONCEPT_ANCESTOR
+	FROM @cdm_database_schema.concept_ancestor
 	WHERE ancestor_concept_id IN (316139, 314378)
 	) c;
 	
@@ -106,35 +106,35 @@ SELECT DISTINCT 6,
 	c.concept_id
 FROM (
 	SELECT concept_id
-	FROM @cdm_database_schema.CONCEPT
+	FROM @cdm_database_schema.concept
 	WHERE concept_id IN (312327,43020432,314962,312939,315288,317309,134380,196438,200138,194393,319047,40486130,317003,4313767,321596,317305,321886,314659,321887,437312,134057)
 		AND invalid_reason IS NULL
 	
 	UNION
 	
 	SELECT descendant_concept_id AS concept_id
-	FROM @cdm_database_schema.CONCEPT_ANCESTOR
+	FROM @cdm_database_schema.concept_ancestor
 	WHERE ancestor_concept_id IN (312327,43020432,314962,312939,315288,317309,134380,196438,200138,194393,319047,40486130,317003,4313767,321596)
 	) c;
 
 -- Feature construction
 {@aggregated} ? {
-IF OBJECT_ID('tempdb..#raw_data', 'U') IS NOT NULL
-	DROP TABLE #raw_data;
+IF OBJECT_ID('tempdb..#chads2Vasc_data', 'U') IS NOT NULL
+	DROP TABLE #chads2Vasc_data;
 
-IF OBJECT_ID('tempdb..#overall_stats', 'U') IS NOT NULL
-	DROP TABLE #overall_stats;
+IF OBJECT_ID('tempdb..#chads2Vasc_stats', 'U') IS NOT NULL
+	DROP TABLE #chads2Vasc_stats;
 
-IF OBJECT_ID('tempdb..#prep_stats', 'U') IS NOT NULL
-	DROP TABLE #prep_stats;
+IF OBJECT_ID('tempdb..#chads2Vasc_prep', 'U') IS NOT NULL
+	DROP TABLE #chads2Vasc_prep;
 
-IF OBJECT_ID('tempdb..#prep_stats2', 'U') IS NOT NULL
-	DROP TABLE #prep_stats2;
+IF OBJECT_ID('tempdb..#chads2Vasc_prep2', 'U') IS NOT NULL
+	DROP TABLE #chads2Vasc_prep2;
 
 SELECT subject_id,
 	cohort_start_date,
 	SUM(weight) AS score
-INTO #raw_data
+INTO #chads2Vasc_data
 } : {
 SELECT CAST(1000 + @analysis_id AS BIGINT) AS covariate_id,
 {@temporal} ? {
@@ -194,28 +194,41 @@ GROUP BY row_id
 ;
 
 {@aggregated} ? {
-SELECT CASE WHEN COUNT(*) = (SELECT COUNT(*) FROM @cohort_table {@cohort_definition_id != -1} ? {WHERE cohort_definition_id = @cohort_definition_id}) THEN MIN(score) ELSE 0 END AS min_value,
-	MAX(score) AS max_value,
-	SUM(score) / (1.0 * (SELECT COUNT(*) FROM @cohort_table {@cohort_definition_id != -1} ? {WHERE cohort_definition_id = @cohort_definition_id})) AS average_value,
-	CASE WHEN COUNT(*) = 1 THEN 0 ELSE SQRT((1.0 * COUNT(*)*SUM(score * score) - 1.0 * SUM(score)*SUM(score)) / (1.0 * COUNT(*)*(1.0 * COUNT(*) - 1))) END AS standard_deviation,
-	COUNT(*) AS count_value,
-	(SELECT COUNT(*) FROM @cohort_table {@cohort_definition_id != -1} ? {WHERE cohort_definition_id = @cohort_definition_id}) - COUNT(*) AS count_no_value,
-	(SELECT COUNT(*) FROM @cohort_table {@cohort_definition_id != -1} ? {WHERE cohort_definition_id = @cohort_definition_id}) AS population_size
-INTO #overall_stats
-FROM #raw_data;
+WITH t1 AS (
+	SELECT COUNT(*) AS cnt 
+	FROM @cohort_table 
+{@cohort_definition_id != -1} ? {	WHERE cohort_definition_id = @cohort_definition_id}
+	),
+t2 AS (
+	SELECT COUNT(*) AS cnt, 
+		MIN(score) AS min_score, 
+		MAX(score) AS max_score, 
+		SUM(score) AS sum_score, 
+		SUM(score*score) AS squared_score 
+	FROM #chads2Vasc_data
+	)
+SELECT CASE WHEN t2.cnt = t1.cnt THEN t2.min_score ELSE 0 END AS min_value,
+	t2.max_score AS max_value,
+	CAST(t2.sum_score / (1.0 * t1.cnt) AS FLOAT) AS average_value,
+	CAST(CASE WHEN t2.cnt = 1 THEN 0 ELSE SQRT((1.0 * t2.cnt*t2.squared_score - 1.0 * t2.sum_score*t2.sum_score) / (1.0 * t2.cnt*(1.0 * t2.cnt - 1))) END AS FLOAT) AS standard_deviation,
+	t2.cnt AS count_value,
+	t1.cnt - t2.cnt AS count_no_value,
+	t1.cnt AS population_size
+INTO #chads2Vasc_stats
+FROM t1, t2;
 
 SELECT score,
 	COUNT(*) AS total,
 	ROW_NUMBER() OVER (ORDER BY score) AS rn
-INTO #prep_stats
-FROM #raw_data
+INTO #chads2Vasc_prep
+FROM #chads2Vasc_data
 GROUP BY score;
 	
 SELECT s.score,
 	SUM(p.total) AS accumulated
-INTO #prep_stats2	
-FROM #prep_stats s
-INNER JOIN #prep_stats p
+INTO #chads2Vasc_prep2	
+FROM #chads2Vasc_prep s
+INNER JOIN #chads2Vasc_prep p
 	ON p.rn <= s.rn
 GROUP BY s.score;
 
@@ -226,8 +239,8 @@ SELECT CAST(1000 + @analysis_id AS BIGINT) AS covariate_id,
 	o.count_value,
 	o.min_value,
 	o.max_value,
-	o.average_value,
-	o.standard_deviation,
+	CAST(o.average_value AS FLOAT) average_value,
+	CAST(o.standard_deviation AS FLOAT) standard_deviation,
 	CASE 
 		WHEN .50 * o.population_size < count_no_value THEN 0
 		ELSE MIN(CASE WHEN p.accumulated + count_no_value >= .50 * o.population_size THEN score	END) 
@@ -249,8 +262,8 @@ SELECT CAST(1000 + @analysis_id AS BIGINT) AS covariate_id,
 		ELSE MIN(CASE WHEN p.accumulated + count_no_value >= .90 * o.population_size THEN score	END) 
 		END AS p90_value		
 INTO @covariate_table
-FROM #prep_stats2 p
-CROSS JOIN #overall_stats o
+FROM #chads2Vasc_prep2 p
+CROSS JOIN #chads2Vasc_stats o
 {@included_cov_table != ''} ? {WHERE 1000 + @analysis_id IN (SELECT id FROM @included_cov_table)}
 GROUP BY o.count_value,
 	o.count_no_value,
@@ -260,17 +273,17 @@ GROUP BY o.count_value,
 	o.standard_deviation,
 	o.population_size;
 	
-TRUNCATE TABLE #raw_data;
-DROP TABLE #raw_data;
+TRUNCATE TABLE #chads2Vasc_data;
+DROP TABLE #chads2Vasc_data;
 
-TRUNCATE TABLE #overall_stats;
-DROP TABLE #overall_stats;
+TRUNCATE TABLE #chads2Vasc_stats;
+DROP TABLE #chads2Vasc_stats;
 
-TRUNCATE TABLE #prep_stats;
-DROP TABLE #prep_stats;
+TRUNCATE TABLE #chads2Vasc_prep;
+DROP TABLE #chads2Vasc_prep;
 
-TRUNCATE TABLE #prep_stats2;
-DROP TABLE #prep_stats2;	
+TRUNCATE TABLE #chads2Vasc_prep2;
+DROP TABLE #chads2Vasc_prep2;	
 } 
 
 TRUNCATE TABLE #chads2vasc_concepts;

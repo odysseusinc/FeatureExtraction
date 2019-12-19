@@ -10,9 +10,12 @@ createTemporalCovariateSettings(useDemographicsGender = FALSE,
   useDemographicsIndexYear = FALSE, useDemographicsIndexMonth = FALSE,
   useDemographicsPriorObservationTime = FALSE,
   useDemographicsPostObservationTime = FALSE,
-  useDemographicsTimeInCohort = FALSE, useConditionOccurrence = FALSE,
-  useConditionOccurrenceInpatient = FALSE, useConditionEraStart = FALSE,
-  useConditionEraOverlap = FALSE, useConditionEraGroupStart = FALSE,
+  useDemographicsTimeInCohort = FALSE,
+  useDemographicsIndexYearMonth = FALSE,
+  useConditionOccurrence = FALSE,
+  useConditionOccurrencePrimaryInpatient = FALSE,
+  useConditionEraStart = FALSE, useConditionEraOverlap = FALSE,
+  useConditionEraGroupStart = FALSE,
   useConditionEraGroupOverlap = FALSE, useDrugExposure = FALSE,
   useDrugEraStart = FALSE, useDrugEraOverlap = FALSE,
   useDrugEraGroupStart = FALSE, useDrugEraGroupOverlap = FALSE,
@@ -20,13 +23,16 @@ createTemporalCovariateSettings(useDemographicsGender = FALSE,
   useMeasurement = FALSE, useMeasurementValue = FALSE,
   useMeasurementRangeGroup = FALSE, useObservation = FALSE,
   useCharlsonIndex = FALSE, useDcsi = FALSE, useChads2 = FALSE,
-  useChads2Vasc = FALSE, useDistinctConditionCount = FALSE,
-  useDistinctIngredientCount = FALSE, useDistinctProcedureCount = FALSE,
-  useDistinctMeasurementCount = FALSE, useVisitCount = FALSE,
-  temporalStartDays = -365:-1, temporalEndDays = -365:-1,
-  includedCovariateConceptIds = c(), addDescendantsToInclude = FALSE,
-  excludedCovariateConceptIds = c(), addDescendantsToExclude = FALSE,
-  includedCovariateIds = c())
+  useChads2Vasc = FALSE, useHfrs = FALSE,
+  useDistinctConditionCount = FALSE,
+  useDistinctIngredientCount = FALSE,
+  useDistinctProcedureCount = FALSE,
+  useDistinctMeasurementCount = FALSE,
+  useDistinctObservationCount = FALSE, useVisitCount = FALSE,
+  useVisitConceptCount = FALSE, temporalStartDays = -365:-1,
+  temporalEndDays = -365:-1, includedCovariateConceptIds = c(),
+  addDescendantsToInclude = FALSE, excludedCovariateConceptIds = c(),
+  addDescendantsToExclude = FALSE, includedCovariateIds = c())
 }
 \arguments{
 \item{useDemographicsGender}{Gender of the subject. (analysis ID 1)}
@@ -45,78 +51,84 @@ groups) (analysis ID 3)}
 
 \item{useDemographicsIndexMonth}{Month of the index date. (analysis ID 7)}
 
-\item{useDemographicsPriorObservationTime}{Number of days of observation time preceding the index
-date. (analysis ID 8)}
+\item{useDemographicsPriorObservationTime}{Number of days of observation time preceding the
+index date. (analysis ID 8)}
 
-\item{useDemographicsPostObservationTime}{Number of days of observation time preceding the index
-date. (analysis ID 9)}
+\item{useDemographicsPostObservationTime}{Number of days of observation time preceding the
+index date. (analysis ID 9)}
 
-\item{useDemographicsTimeInCohort}{Number of days of observation time preceding the index
-date. (analysis ID 10)}
+\item{useDemographicsTimeInCohort}{Number of days of observation time preceding the
+index date. (analysis ID 10)}
 
-\item{useConditionOccurrence}{One covariate per condition in the condition_occurrence
-table starting in the time window. (analysis ID 101)}
+\item{useDemographicsIndexYearMonth}{Calendar month of the index date. (analysis ID 11)}
 
-\item{useConditionOccurrenceInpatient}{One covariate per condition observed in an inpatient
-setting in the condition_occurrence table starting in
-the time window. (analysis ID 102)}
+\item{useConditionOccurrence}{One covariate per condition in the
+condition_occurrence table starting in the time
+window. (analysis ID 101)}
 
-\item{useConditionEraStart}{One covariate per condition in the condition_era table
-starting in the time window. (analysis ID 201)}
+\item{useConditionOccurrencePrimaryInpatient}{One covariate per condition observed as a primary
+diagnosis in an inpatient setting in the
+condition_occurrence table starting in the time
+window. (analysis ID 102)}
 
-\item{useConditionEraOverlap}{One covariate per condition in the condition_era table
-overlapping with any part of the time window. (analysis
-ID 202)}
+\item{useConditionEraStart}{One covariate per condition in the condition_era
+table starting in the time window. (analysis ID 201)}
+
+\item{useConditionEraOverlap}{One covariate per condition in the condition_era
+table overlapping with any part of the time window.
+(analysis ID 202)}
 
 \item{useConditionEraGroupStart}{One covariate per condition era rolled up to SNOMED
-groups in the condition_era table starting in the time
-window. (analysis ID 203)}
+groups in the condition_era table starting in the
+time window. (analysis ID 203)}
 
 \item{useConditionEraGroupOverlap}{One covariate per condition era rolled up to SNOMED
-groups in the condition_era table overlapping with any
-part of the time window. (analysis ID 203)}
+groups in the condition_era table overlapping with
+any part of the time window. (analysis ID 203)}
 
 \item{useDrugExposure}{One covariate per drug in the drug_exposure table
 starting in the time window. (analysis ID 301)}
 
-\item{useDrugEraStart}{One covariate per drug in the drug_era table starting
-in the time window. (analysis ID 401)}
+\item{useDrugEraStart}{One covariate per drug in the drug_era table
+starting in the time window. (analysis ID 401)}
 
 \item{useDrugEraOverlap}{One covariate per drug in the drug_era table
-overlapping with any part of the time window. (analysis
-ID 402)}
+overlapping with any part of the time window.
+(analysis ID 402)}
 
-\item{useDrugEraGroupStart}{One covariate per drug rolled up to ATC groups in the
-drug_era table starting in thetime window. (analysis ID
-403)}
+\item{useDrugEraGroupStart}{One covariate per drug rolled up to ATC groups in
+the drug_era table starting in thetime window.
+(analysis ID 403)}
 
-\item{useDrugEraGroupOverlap}{One covariate per drug rolled up to ATC groups in the
-drug_era table overlapping with any part of thetime
-window. (analysis ID 403)}
+\item{useDrugEraGroupOverlap}{One covariate per drug rolled up to ATC groups in
+the drug_era table overlapping with any part of
+thetime window. (analysis ID 403)}
 
-\item{useProcedureOccurrence}{One covariate per procedure in the procedure_occurrence
-table in the time window. (analysis ID 501)}
+\item{useProcedureOccurrence}{One covariate per procedure in the
+procedure_occurrence table in the time window.
+(analysis ID 501)}
 
-\item{useDeviceExposure}{One covariate per device in the device exposure table
-starting in the timewindow. (analysis ID 601)}
+\item{useDeviceExposure}{One covariate per device in the device exposure
+table starting in the timewindow. (analysis ID 601)}
 
-\item{useMeasurement}{One covariate per measurement in the measurement table
-in the time window. (analysis ID 701)}
+\item{useMeasurement}{One covariate per measurement in the measurement
+table in the time window. (analysis ID 701)}
 
-\item{useMeasurementValue}{One covariate containing the value per measurement-unit
-combination in the time window. If multiple values are
-found, the last is taken. (analysis ID 702)}
+\item{useMeasurementValue}{One covariate containing the value per
+measurement-unit combination in the time window. If
+multiple values are found, the last is taken.
+(analysis ID 702)}
 
-\item{useMeasurementRangeGroup}{Covariates indicating whether measurements are below,
-within, or above normal range within the time period.
-(analysis ID 703)}
+\item{useMeasurementRangeGroup}{Covariates indicating whether measurements are
+below, within, or above normal range within the time
+period. (analysis ID 703)}
 
-\item{useObservation}{One covariate per observation in the observation table
-in the time window. (analysis ID 801)}
+\item{useObservation}{One covariate per observation in the observation
+table in the time window. (analysis ID 801)}
 
 \item{useCharlsonIndex}{The Charlson comorbidity index (Romano adaptation)
-using all conditions prior to the window end. (analysis
-ID 901)}
+using all conditions prior to the window end.
+(analysis ID 901)}
 
 \item{useDcsi}{The Diabetes Comorbidity Severity Index (DCSI) using
 all conditions prior to the window end. (analysis ID
@@ -125,47 +137,60 @@ all conditions prior to the window end. (analysis ID
 \item{useChads2}{The CHADS2 score using all conditions prior to the
 window end. (analysis ID 903)}
 
-\item{useChads2Vasc}{The CHADS2VASc score using all conditions prior to the
-window end. (analysis ID 904)}
+\item{useChads2Vasc}{The CHADS2VASc score using all conditions prior to
+the window end. (analysis ID 904)}
 
-\item{useDistinctConditionCount}{The number of distinct condition concepts observed in
-the time window. (analysis ID 905)}
+\item{useHfrs}{The Hospital Frailty Risk Score score using all
+conditions prior to the window end. (analysis ID
+926)}
 
-\item{useDistinctIngredientCount}{The number of distinct ingredients observed in the time
-window. (analysis ID 906)}
+\item{useDistinctConditionCount}{The number of distinct condition concepts observed
+in the time window. (analysis ID 905)}
 
-\item{useDistinctProcedureCount}{The number of distinct procedures observed in the time
-window. (analysis ID 907)}
+\item{useDistinctIngredientCount}{The number of distinct ingredients observed in the
+time window. (analysis ID 906)}
+
+\item{useDistinctProcedureCount}{The number of distinct procedures observed in the
+time window. (analysis ID 907)}
 
 \item{useDistinctMeasurementCount}{The number of distinct measurements observed in the
 time window. (analysis ID 908)}
 
+\item{useDistinctObservationCount}{The number of distinct observations in the time
+window. (analysis ID 909)}
+
 \item{useVisitCount}{The number of visits observed in the time window.
-(analysis ID 909)}
+(analysis ID 910)}
+
+\item{useVisitConceptCount}{The number of visits observed in the time window,
+stratified by visit concept ID. (analysis ID 911)}
 
 \item{temporalStartDays}{A list of integers representing the start of a time
 period, relative to the index date. 0 indicates the
-index date, -1 indicates the day before the index date,
-etc. The start day is included in the time period.}
+index date, -1 indicates the day before the index
+date, etc. The start day is included in the time
+period.}
 
 \item{temporalEndDays}{A list of integers representing the end of a time
 period, relative to the index date. 0 indicates the
-index date, -1 indicates the day before the index date,
-etc. The end day is included in the time period.}
+index date, -1 indicates the day before the index
+date, etc. The end day is included in the time
+period.}
 
-\item{includedCovariateConceptIds}{A list of concept IDs that should be used to construct
-covariates.}
+\item{includedCovariateConceptIds}{A list of concept IDs that should be used to
+construct covariates.}
 
-\item{addDescendantsToInclude}{Should descendant concept IDs be added to the list of
-concepts to include?}
+\item{addDescendantsToInclude}{Should descendant concept IDs be added to the list
+of concepts to include?}
 
 \item{excludedCovariateConceptIds}{A list of concept IDs that should NOT be used to
 construct covariates.}
 
-\item{addDescendantsToExclude}{Should descendant concept IDs be added to the list of
-concepts to exclude?}
+\item{addDescendantsToExclude}{Should descendant concept IDs be added to the list
+of concepts to exclude?}
 
-\item{includedCovariateIds}{A list of covariate IDs that should be restricted to.}
+\item{includedCovariateIds}{A list of covariate IDs that should be restricted
+to.}
 }
 \value{
 An object of type \code{covariateSettings}, to be used in other functions.
@@ -187,8 +212,9 @@ settings <- createTemporalCovariateSettings(useDemographicsGender = TRUE,
                                             useDemographicsPriorObservationTime = FALSE,
                                             useDemographicsPostObservationTime = FALSE,
                                             useDemographicsTimeInCohort = FALSE,
+                                            useDemographicsIndexYearMonth = FALSE,
                                             useConditionOccurrence = FALSE,
-                                            useConditionOccurrenceInpatient = FALSE,
+                                            useConditionOccurrencePrimaryInpatient = FALSE,
                                             useConditionEraStart = FALSE,
                                             useConditionEraOverlap = FALSE,
                                             useConditionEraGroupStart = FALSE,
@@ -208,11 +234,14 @@ settings <- createTemporalCovariateSettings(useDemographicsGender = TRUE,
                                             useDcsi = TRUE,
                                             useChads2 = TRUE,
                                             useChads2Vasc = TRUE,
+                                            useHfrs = FALSE,
                                             useDistinctConditionCount = FALSE,
                                             useDistinctIngredientCount = FALSE,
                                             useDistinctProcedureCount = FALSE,
                                             useDistinctMeasurementCount = FALSE,
+                                            useDistinctObservationCount = FALSE,
                                             useVisitCount = FALSE,
+                                            useVisitConceptCount = FALSE,
                                             temporalStartDays = -365:-1,
                                             temporalEndDays = -365:-1,
                                             includedCovariateConceptIds = c(),

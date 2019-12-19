@@ -1,5 +1,6 @@
 pom.xml
 extras
+docs
 bin
 man-roxygen
 ^.*\.Rproj$
@@ -10,3 +11,5 @@ man-roxygen
 ^\.travis\.yml$
 deploy.sh
 ^\.git
+compare_versions
+_pkgdown.yml

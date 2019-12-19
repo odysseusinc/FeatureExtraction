@@ -1,6 +1,6 @@
 # @file FeatureExtraction.R
 #
-# Copyright 2017 Observational Health Data Sciences and Informatics
+# Copyright 2019 Observational Health Data Sciences and Informatics
 #
 # This file is part of FeatureExtraction
 # 
@@ -21,7 +21,7 @@
 #' @docType package
 #' @name FeatureExtraction
 #' @importFrom Rcpp evalCpp
-#' @importFrom SqlRender loadRenderTranslateSql translateSql
+#' @importFrom SqlRender loadRenderTranslateSql translate render
 #' @importFrom plyr ddply
 #' @importFrom methods is
 #' @importFrom stats aggregate quantile sd
@@ -32,24 +32,50 @@
 NULL
 
 .onLoad <- function(libname, pkgname) {
-
+  
   rJava::.jpackage(pkgname, lib.loc = libname)
-
+  
   # Copied this from the ff package:
+  if (is.null(getOption("ffbatchbytes"))) {
+    # memory.limit is windows specific
+    if (.Platform$OS.type == "windows")
+    {
+      if (getRversion() >= "2.6.0")  # memory.limit was silently changed from 2.6.0 to return in MB instead of bytes
+        options(ffbatchbytes =  utils::memory.limit()*(1024^2 / 100))
+      else
+        options(ffbatchbytes =  utils::memory.limit() / 100)
+    } else {
+      # some magic constant
+      options(ffbatchbytes = 16*1024^2)
+    }
+  }
   if (is.null(getOption("ffmaxbytes"))) {
     # memory.limit is windows specific
     if (.Platform$OS.type == "windows") {
       if (getRversion() >= "2.6.0")
-        options(ffmaxbytes = 0.5 * utils::memory.limit() * (1024^2)) else options(ffmaxbytes = 0.5 * utils::memory.limit())
+        options(ffmaxbytes = 0.5 * utils::memory.limit() * (1024^2)) 
+      else 
+        options(ffmaxbytes = 0.5 * utils::memory.limit())
     } else {
       # some magic constant
       options(ffmaxbytes = 0.5 * 1024^3)
     }
   }
-
+  
   # Workaround for problem with ff on machines with lots of memory (see
   # https://github.com/edwindj/ffbase/issues/37)
+  options(ffbatchbytes = min(getOption("ffbatchbytes"), .Machine$integer.max / 10))
   options(ffmaxbytes = min(getOption("ffmaxbytes"), .Machine$integer.max * 12))
+  
+  # Verify checksum of JAR:
+  storedChecksum <- scan(file = system.file("csv", "jarChecksum.txt", package = "FeatureExtraction"), what = character(), quiet = TRUE)
+  computedChecksum <- tryCatch(rJava::J("org.ohdsi.featureExtraction.JarChecksum","computeJarChecksum"),
+                               error = function(e) {warning("Problem connecting to Java. This is normal when runing roxygen."); return("")})
+  if (computedChecksum != "" && (storedChecksum != computedChecksum)) {
+    warning("Java library version does not match R package version! Please try reinstalling the FeatureExtraction package.
+            Make sure to close all instances of R, and open only one instance before reinstalling. Also make sure your 
+            R workspace is not reloaded on startup. Delete your .Rdata file if necessary")
+  }
 }
 
 .toJson <- function(object) {

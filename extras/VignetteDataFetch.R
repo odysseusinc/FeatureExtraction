@@ -1,6 +1,6 @@
 # @file VignetteDataFetch.R
 #
-# Copyright 2017 Observational Health Data Sciences and Informatics
+# Copyright 2019 Observational Health Data Sciences and Informatics
 #
 # This file is part of FeatureExtraction
 # 
@@ -37,7 +37,7 @@ extraSettings <- NULL
 vignetteFolder <- "s:/temp/vignetteFeatureExtraction"
 if (!file.exists(vignetteFolder))
   dir.create(vignetteFolder)
-  
+
 
 connectionDetails <- DatabaseConnector::createConnectionDetails(dbms = dbms,
                                                                 server = server,
@@ -58,8 +58,8 @@ DatabaseConnector::executeSql(connection, sql)
 sql <- paste("SELECT cohort_definition_id, COUNT(*) AS count",
              "FROM @resultsDatabaseSchema.cohorts_of_interest",
              "GROUP BY cohort_definition_id")
-sql <- renderSql(sql, resultsDatabaseSchema = resultsDatabaseSchema)$sql
-sql <- translateSql(sql, targetDialect = connectionDetails$dbms)$sql
+sql <- render(sql, resultsDatabaseSchema = resultsDatabaseSchema)
+sql <- translate(sql, targetDialect = connectionDetails$dbms)
 DatabaseConnector::querySql(connection, sql)
 
 DatabaseConnector::disconnect(connection)
@@ -92,12 +92,12 @@ saveRDS(deletedCovariateIds, file.path(vignetteFolder, "deletedInfrequentCovaria
 covariateSettings <- createDefaultCovariateSettings()
 
 covariateData2 <- getDbCovariateData(connectionDetails = connectionDetails,
-                                    cdmDatabaseSchema = cdmDatabaseSchema,
-                                    cohortDatabaseSchema = resultsDatabaseSchema,
-                                    cohortTable = "cohorts_of_interest",
-                                    cohortId = 1118084,
-                                    covariateSettings = covariateSettings,
-                                    aggregated = TRUE)
+                                     cdmDatabaseSchema = cdmDatabaseSchema,
+                                     cohortDatabaseSchema = resultsDatabaseSchema,
+                                     cohortTable = "cohorts_of_interest",
+                                     cohortId = 1118084,
+                                     covariateSettings = covariateSettings,
+                                     aggregated = TRUE)
 
 
 saveCovariateData(covariateData2, file.path(vignetteFolder, "aggregatedCovariates"))
@@ -126,22 +126,22 @@ covariateSettings <- createTable1CovariateSettings(excludedCovariateConceptIds =
                                                    addDescendantsToExclude = TRUE)
 
 covDiclofenac <- getDbCovariateData(connectionDetails = connectionDetails,
-                                      cdmDatabaseSchema = cdmDatabaseSchema,
-                                      cohortDatabaseSchema = resultsDatabaseSchema,
-                                      cohortTable = "cohorts_of_interest",
-                                      cohortId = 1124300,
-                                      covariateSettings = covariateSettings,
-                                      aggregated = TRUE)
+                                    cdmDatabaseSchema = cdmDatabaseSchema,
+                                    cohortDatabaseSchema = resultsDatabaseSchema,
+                                    cohortTable = "cohorts_of_interest",
+                                    cohortId = 1124300,
+                                    covariateSettings = covariateSettings,
+                                    aggregated = TRUE)
 
 saveCovariateData(covDiclofenac, file.path(vignetteFolder, "covDiclofenac"))
 
 covCelecoxib <- getDbCovariateData(connectionDetails = connectionDetails,
-                                    cdmDatabaseSchema = cdmDatabaseSchema,
-                                    cohortDatabaseSchema = resultsDatabaseSchema,
-                                    cohortTable = "cohorts_of_interest",
-                                    cohortId = 1118084,
-                                    covariateSettings = covariateSettings,
-                                    aggregated = TRUE)
+                                   cdmDatabaseSchema = cdmDatabaseSchema,
+                                   cohortDatabaseSchema = resultsDatabaseSchema,
+                                   cohortTable = "cohorts_of_interest",
+                                   cohortId = 1118084,
+                                   covariateSettings = covariateSettings,
+                                   aggregated = TRUE)
 
 saveCovariateData(covCelecoxib, file.path(vignetteFolder, "covCelecoxib"))
 
@@ -200,12 +200,12 @@ getDbLooCovariateData <- function(connection,
                "WHERE cohort_start_date >= observation_period_start_date",
                "AND cohort_start_date <= observation_period_end_date",
                "{@cohort_id != -1} ? {AND cohort_definition_id = @cohort_id}")
-  sql <- SqlRender::renderSql(sql,
-                              cohort_table = cohortTable,
-                              cohort_id = cohortId,
-                              row_id_field = rowIdField,
-                              cdm_database_schema = cdmDatabaseSchema)$sql
-  sql <- SqlRender::translateSql(sql, targetDialect = attr(connection, "dbms"))$sql
+  sql <- SqlRender::render(sql,
+                           cohort_table = cohortTable,
+                           cohort_id = cohortId,
+                           row_id_field = rowIdField,
+                           cdm_database_schema = cdmDatabaseSchema)
+  sql <- SqlRender::translate(sql, targetDialect = attr(connection, "dbms"))
   
   # Retrieve the covariate:
   covariates <- DatabaseConnector::querySql.ffdf(connection, sql)
@@ -248,6 +248,8 @@ covariates <- getDbCovariateData(connectionDetails = connectionDetails,
                                  cohortTable = "rehospitalization",
                                  cohortId = 1,
                                  covariateSettings = looCovSet)
+
+aggCovs <- aggregateCovariates(covariates)
 
 covariateSettings <- createCovariateSettings(useDemographicsGender = TRUE,
                                              useDemographicsAgeGroup = TRUE,
@@ -322,7 +324,9 @@ querySql(connection, "SELECT TOP 100 * FROM scratch.dbo.loo_cohort_attribute")
 looCovSet <- createCohortAttrCovariateSettings(attrDatabaseSchema = cohortDatabaseSchema,
                                                cohortAttrTable = "loo_cohort_attribute",
                                                attrDefinitionTable = "loo_attribute_definition",
-                                               includeAttrIds = c())
+                                               includeAttrIds = c(),
+                                               isBinary = FALSE,
+                                               missingMeansZero = FALSE)
 
 covariates <- getDbCovariateData(connectionDetails = connectionDetails,
                                  cdmDatabaseSchema = cdmDatabaseSchema,
@@ -331,6 +335,8 @@ covariates <- getDbCovariateData(connectionDetails = connectionDetails,
                                  cohortId = 1,
                                  covariateSettings = looCovSet)
 summary(covariates)
+
+aggCovs <- aggregateCovariates(covariates)
 
 covariateSettings <- createCovariateSettings(useDemographicsGender = TRUE,
                                              useDemographicsAgeGroup = TRUE,
@@ -353,7 +359,7 @@ covariates <- getDbCovariateData(connectionDetails = connectionDetails,
 
 
 sql <- "DROP TABLE @cohort_database_schema.rehospitalization"
-sql <- SqlRender::renderSql(sql, cohort_database_schema = cohortDatabaseSchema)$sql
-sql <- SqlRender::translateSql(sql, targetDialect = attr(connection, "dbms"))$sql
+sql <- SqlRender::render(sql, cohort_database_schema = cohortDatabaseSchema)
+sql <- SqlRender::translate(sql, targetDialect = attr(connection, "dbms"))
 DatabaseConnector::executeSql(connection, sql)
 DatabaseConnector::disconnect(connection)

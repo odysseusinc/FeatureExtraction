@@ -1,4 +1,4 @@
-# Copyright 2017 Observational Health Data Sciences and Informatics
+# Copyright 2019 Observational Health Data Sciences and Informatics
 #
 # This file is part of FeatureExtraction
 #
@@ -84,6 +84,7 @@ getDbCovariateData <- function(connectionDetails = NULL,
   }
   if (!is.null(connectionDetails)) {
     connection <- DatabaseConnector::connect(connectionDetails)
+    on.exit(DatabaseConnector::disconnect(connection))
   }
   if (cohortTableIsTemp) {
     if (substr(cohortTable, 1, 1) == "#") {
@@ -95,12 +96,12 @@ getDbCovariateData <- function(connectionDetails = NULL,
     cohortDatabaseSchemaTable <- paste(cohortDatabaseSchema, cohortTable, sep = ".")
   }
   sql <- "SELECT COUNT_BIG(*) FROM @cohort_database_schema_table {@cohort_id != -1} ? {WHERE cohort_definition_id = @cohort_id} "
-  sql <- SqlRender::renderSql(sql = sql,
-                              cohort_database_schema_table = cohortDatabaseSchemaTable,
-                              cohort_id = cohortId)$sql
-  sql <- SqlRender::translateSql(sql = sql,
-                                 targetDialect = attr(connection, "dbms"),
-                                 oracleTempSchema = oracleTempSchema)$sql
+  sql <- SqlRender::render(sql = sql,
+                           cohort_database_schema_table = cohortDatabaseSchemaTable,
+                           cohort_id = cohortId)
+  sql <- SqlRender::translate(sql = sql,
+                              targetDialect = attr(connection, "dbms"),
+                              oracleTempSchema = oracleTempSchema)
   populationSize <- DatabaseConnector::querySql(connection, sql)[1, 1]
   if (populationSize == 0) {
     covariateData <- list(covariates = data.frame(), covariateRef = data.frame(), metaData = list())
@@ -112,6 +113,9 @@ getDbCovariateData <- function(connectionDetails = NULL,
     }
     if (is.list(covariateSettings)) {
       covariateData <- NULL
+      hasData <- function(data) {
+        return(!is.null(data) && nrow(data) != 0) 
+      }
       for (i in 1:length(covariateSettings)) {
         fun <- attr(covariateSettings[[i]], "fun")
         args <- list(connection = connection,
@@ -123,40 +127,36 @@ getDbCovariateData <- function(connectionDetails = NULL,
                      rowIdField = rowIdField,
                      covariateSettings = covariateSettings[[i]],
                      aggregated = aggregated)
-        tempCovariateData <- do.call(fun, args)
-        
-        if (!is.null(tempCovariateData$covariates) || !is.null(tempCovariateData$covariatesContinuous)) {
-          if (is.null(covariateData)) {
-            covariateData <- tempCovariateData
-          } else {
-            # Concatenate covariate data:
-            if (!is.null(tempCovariateData$covariates)) {
-              if (!is.null(covariateData$covariates)) {
-                covariateData$covariates <- ffbase::ffdfappend(covariateData$covariates,
-                                                               tempCovariateData$covariates)
-              } else {
-                covariateData$covariates <- tempCovariateData$covariates
-              }
+        tempCovariateData <- do.call(eval(parse(text = fun)), args)
+        if (is.null(covariateData)) {
+          covariateData <- tempCovariateData
+        } else {
+          if (hasData(covariateData$covariates)) {
+            if (hasData(tempCovariateData$covariates)) {
+              covariateData$covariates <- ffbase::ffdfappend(covariateData$covariates,
+                                                             tempCovariateData$covariates)
+            } 
+          } else if (hasData(tempCovariateData$covariates)) {
+            covariateData$covariates <- tempCovariateData$covariates
+          }
+          if (hasData(covariateData$covariatesContinuous)) {
+            if (hasData(tempCovariateData$covariatesContinuous)) {
+              covariateData$covariatesContinuous <- ffbase::ffdfappend(covariateData$covariatesContinuous,
+                                                                       tempCovariateData$covariatesContinuous)
+            } else if (hasData(tempCovariateData$covariatesContinuous)) {
+              covariateData$covariatesContinuous <- tempCovariateData$covariatesContinuous
             }
-            if (!is.null(tempCovariateData$covariatesContinuous)) {
-              if (!is.null(covariateData$covariatesContinuous)) {
-                covariateData$covariatesContinuous <- ffbase::ffdfappend(covariateData$covariatesContinuous,
-                                                                         tempCovariateData$covariatesContinuous)
-              } else {
-                covariateData$covariatesContinuous <- tempCovariateData$covariatesContinuous
-              }
-            }
-            covariateData$covariateRef <- ffbase::ffdfappend(covariateData$covariateRef,
-                                                             ff::as.ram(tempCovariateData$covariateRef))
-            covariateData$analysisRef <- ffbase::ffdfappend(covariateData$analysisRef,
-                                                            ff::as.ram(tempCovariateData$analysisRef))
-            for (name in names(tempCovariateData$metaData)) {
-              if (is.null(covariateData$metaData[name])) {
-                covariateData$metaData[[name]] <- tempCovariateData$metaData[[name]]
-              } else {
-                covariateData$metaData[[name]] <- list(covariateData$metaData[[name]],
-                                                       tempCovariateData$metaData[[name]])
-              }
+          } 
+          covariateData$covariateRef <- ffbase::ffdfappend(covariateData$covariateRef,
+                                                           ff::as.ram(tempCovariateData$covariateRef))
+          covariateData$analysisRef <- ffbase::ffdfappend(covariateData$analysisRef,
+                                                          ff::as.ram(tempCovariateData$analysisRef))
+          for (name in names(tempCovariateData$metaData)) {
+            if (is.null(covariateData$metaData[name])) {
+              covariateData$metaData[[name]] <- tempCovariateData$metaData[[name]]
+            } else {
+              covariateData$metaData[[name]] <- list(covariateData$metaData[[name]],
+                                                     tempCovariateData$metaData[[name]])
             }
           }
         }
@@ -165,9 +165,6 @@ getDbCovariateData <- function(connectionDetails = NULL,
   }
   covariateData$metaData$populationSize <- populationSize
   covariateData$metaData$cohortId <- cohortId
-  if (!is.null(connectionDetails)) {
-    DatabaseConnector::disconnect(connection)
-  }
   return(covariateData)
 }
 

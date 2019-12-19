@@ -1,6 +1,6 @@
 # @file PackageMaintenance
 #
-# Copyright 2017 Observational Health Data Sciences and Informatics
+# Copyright 2019 Observational Health Data Sciences and Informatics
 #
 # This file is part of FeatureExtraction
 # 
@@ -42,6 +42,21 @@ rmarkdown::render("vignettes/UsingFeatureExtraction.Rmd",
                   rmarkdown::pdf_document(latex_engine = "pdflatex",
                                           toc = TRUE,
                                           number_sections = TRUE))
+
+rmarkdown::render("vignettes/UsingFeatureExtractionKorean.Rmd",
+                  output_file = "../inst/doc/UsingFeatureExtractionKorean.pdf",
+                  rmarkdown::pdf_document(number_sections = TRUE))
+
+rmarkdown::render("vignettes/CreatingCustomCovariateBuildersKorean.Rmd",
+                  output_file = "../inst/doc/CreatingCustomCovariateBuildersKorean.pdf",
+                  rmarkdown::pdf_document(number_sections = TRUE))
+
+
+pkgdown::build_site()
+
+# Store JAR checksum --------------------------------------------------------------
+checksum <- rJava::J("org.ohdsi.featureExtraction.JarChecksum", "computeJarChecksum")
+write(checksum, file.path("inst", "csv", "jarChecksum.txt"))
 
 # Generate covariate settings function from template ----------------------
 prespecAnalyses <- read.csv("inst/csv/PrespecAnalyses.csv", stringsAsFactors = FALSE)

@@ -96,15 +96,15 @@ We substitute the arguments in this SQL with actual values, translate it to the 
 
 ```{r tidy=FALSE,eval=FALSE}
 library(SqlRender)
-sql <- readSql("HospitalizationCohorts.sql")
-sql <- renderSql(sql,
+sql <- readSql("LengthOfObsCohortAttr.sql")
+sql <- render(sql,
                  cdm_database_schema = cdmDatabaseSchema,
                  cohort_database_schema = cohortDatabaseSchema,
                  cohort_table = "rehospitalization",
                  cohort_attribute_table = "loo_cohort_attr",
                  attribute_definition_table = "loo_attr_def",
-                 cohort_definition_ids = c(1,2))$sql
-sql <- translateSql(sql, targetDialect = connectionDetails$dbms)$sql
+                 cohort_definition_ids = c(1,2))
+sql <- translate(sql, targetDialect = connectionDetails$dbms)
 
 connection <- connect(connectionDetails)
 executeSql(connection, sql)
@@ -118,10 +118,12 @@ To use the constructed attributes as covariates in a predictive model, we need t
 looCovSet <- createCohortAttrCovariateSettings(attrDatabaseSchema = cohortDatabaseSchema,
                                                cohortAttrTable = "loo_cohort_attr",
                                                attrDefinitionTable = "loo_attr_def",
-                                               includeAttrIds = c())
+                                               includeAttrIds = c(),
+                                               isBinary = FALSE,
+                                               missingMeansZero = FALSE)
 ```
 
-We can then use these settings to fetch the `covariates` object:
+Setting `isBinary` and `missingMeansZero` is only necessary if we want to aggregate the covariates. We can then use these settings to fetch the `covariates` object:
 
 ```{r eval=FALSE}
 covariates <- getDbCovariateData(connectionDetails = connectionDetails,

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2017 Observational Health Data Sciences and Informatics
+ * Copyright 2019 Observational Health Data Sciences and Informatics
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,7 +84,7 @@ public class FeatureExtraction {
 		// System.out.println(convertSettingsPrespecToDetails(getDefaultPrespecAnalyses()));
 		String settings = "{\"temporal\":false,\"analyses\":[{\"analysisId\":301,\"sqlFileName\":\"DomainConcept.sql\",\"parameters\":{\"analysisId\":301,\"startDay\":-365,\"endDay\":0,\"inpatient\":\"\",\"domainTable\":\"drug_exposure\",\"domainConceptId\":\"drug_concept_id\",\"domainStartDate\":\"drug_exposure_start_date\",\"domainEndDate\":\"drug_exposure_start_date\"},\"addDescendantsToExclude\":true,\"includedCovariateConceptIds\":[1,2,21600537410],\"excludedCovariateConceptIds\":{},\"addDescendantsToInclude\":true,\"includedCovariateIds\":12301}]}";
 		// String settings = convertSettingsPrespecToDetails(getDefaultPrespecAnalyses());
-		System.out.println(createSql(settings, false, "#temp_cohort", "row_id", -1, "cdm_synpuf"));
+		System.out.println(createSql(settings, true, "#temp_cohort", "row_id", -1, "cdm_synpuf"));
 		// System.out.println(createSql(getDefaultPrespecAnalyses(), true, "#temp_cohort", "row_id", -1, "cdm_synpuf"));
 		// System.out.println(createSql(getDefaultPrespecTemporalAnalyses(), false, "#temp_cohort", "row_id", -1, "cdm_synpuf"));
 	}
@@ -100,16 +100,25 @@ public class FeatureExtraction {
 			return;
 		else {
 			lock.lock();
-			if (otherParameterNames == null) { // Could have been loaded before acquiring the lock
-				otherParameterNames = new HashSet<String>();
-				loadOtherParameters(packageFolder);
-				nameToSql = new HashMap<String, String>();
-				nameToPrespecAnalysis = loadPrespecAnalysis(packageFolder, "PrespecAnalyses.csv");
-				nameToPrespecTemporalAnalysis = loadPrespecAnalysis(packageFolder, "PrespecTemporalAnalyses.csv");
-				loadTemplateSql(packageFolder);
-				createCovRefTableSql = loadSqlFile(packageFolder, "CreateCovAnalysisRefTables.sql");
+			try {
+				if (otherParameterNames == null) { // Could have been loaded before acquiring the lock
+					otherParameterNames = new HashSet<String>();
+					loadOtherParameters(packageFolder);
+					nameToSql = new HashMap<String, String>();
+					nameToPrespecAnalysis = loadPrespecAnalysis(packageFolder, "PrespecAnalyses.csv");
+					nameToPrespecTemporalAnalysis = loadPrespecAnalysis(packageFolder, "PrespecTemporalAnalyses.csv");
+					loadTemplateSql(packageFolder);
+					createCovRefTableSql = loadSqlFile(packageFolder, "CreateCovAnalysisRefTables.sql");
+				}
+			} catch(Exception e) {
+				otherParameterNames = null;
+				nameToSql = null;
+				nameToPrespecAnalysis = null;
+				createCovRefTableSql = null;
+				throw new RuntimeException(e);
+			} finally {
+				lock.unlock();
 			}
-			lock.unlock();
 		}
 	}
 	
@@ -247,7 +256,14 @@ public class FeatureExtraction {
 		}
 		return nameToPrespecAnalysis;
 	}
-	
+
+	public static Map<String, PrespecAnalysis> getNameToPrespecAnalysis() {
+		if (nameToPrespecAnalysis == null) {
+			FeatureExtraction.init(null);
+		}
+		return nameToPrespecAnalysis;
+	}
+
 	/**
 	 * Creates a default settings object
 	 * 
@@ -485,6 +501,11 @@ public class FeatureExtraction {
 			if (analysis.has("covariateTable"))
 				tempTables.add(analysis.getString("covariateTable"));
 		}
+		Map<IdSet, String> idSetToName = extractUniqueIdSets(jsonObject);
+		for (Map.Entry<IdSet, String> entry : idSetToName.entrySet()) {
+			if (entry.getKey().addDescendants)
+				tempTables.add(entry.getValue());
+		}
 		tempTables.add("#cov_ref");
 		tempTables.add("#analysis_ref");
 		StringBuilder sql = new StringBuilder();
@@ -498,8 +519,7 @@ public class FeatureExtraction {
 	private static String createQuerySql(JSONObject jsonObject, String cohortTable, int cohortDefinitionId, boolean aggregated, boolean temporal) {
 		StringBuilder fields = new StringBuilder();
 		if (aggregated) {
-			fields.append(
-					"covariate_id, sum_value, sum_value / (1.0 * (SELECT COUNT(*) FROM @cohort_table {@cohort_definition_id != -1} ? {WHERE cohort_definition_id = @cohort_definition_id})) AS average_value");
+			fields.append("covariate_id, sum_value");
 		} else {
 			fields.append("row_id, covariate_id, covariate_value");
 		}
@@ -508,7 +528,12 @@ public class FeatureExtraction {
 		}
 		boolean hasFeature = false;
 		StringBuilder sql = new StringBuilder();
-		sql.append("SELECT " + fields.toString() + "\nFROM (\n");
+		if (aggregated) {
+			sql.append(
+					"SELECT all_covariates.covariate_id,\n  all_covariates.sum_value,\n  CAST(all_covariates.sum_value / (1.0 * total.total_count) AS FLOAT) AS average_value\nFROM (");
+		} else {
+			sql.append("SELECT *\nFROM (\n");
+		}
 		Iterator<Object> analysesIterator = jsonObject.getJSONArray(ANALYSES).iterator();
 		while (analysesIterator.hasNext()) {
 			JSONObject analysis = (JSONObject) analysesIterator.next();
@@ -521,7 +546,12 @@ public class FeatureExtraction {
 		}
 		if (!hasFeature)
 			return null;
-		sql.append("\n) all_covariates;");
+		if (aggregated) {
+			sql.append(
+					"\n) all_covariates, (\nSELECT COUNT(*) AS total_count\nFROM @cohort_table {@cohort_definition_id != -1} ? {\nWHERE cohort_definition_id = @cohort_definition_id}\n) total;");
+		} else {
+			sql.append("\n) all_covariates;");
+		}
 		return SqlRender.renderSql(sql.toString(), new String[] { "cohort_table", "cohort_definition_id" },
 				new String[] { cohortTable, Integer.toString(cohortDefinitionId) });
 	}
@@ -622,8 +652,8 @@ public class FeatureExtraction {
 				else if (sql.toString().contains("CAST('Y' AS VARCHAR(1)) AS is_binary"))
 					analysis.put("isBinary", true);
 				else
-					throw new RuntimeException("Unable to determine if feature is binary or not: " +
-							"" + analysis.get(SQL_FILE_NAME) + " For SQL: " + templateSql);
+					throw new RuntimeException(
+							"Unable to determine if feature is binary or not: " + "" + analysis.get(SQL_FILE_NAME) + " For SQL: " + templateSql);
 			}
 		}
 		return sql.toString();
@@ -699,7 +729,7 @@ public class FeatureExtraction {
 		return columns;
 	}
 	
-	private static class PrespecAnalysis {
+	public static class PrespecAnalysis {
 		public int					analysisId;
 		public String				analysisName;
 		public boolean				isDefault;
