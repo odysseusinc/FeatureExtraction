@@ -72,7 +72,8 @@ getDbDefaultCovariateData <- function(connection,
                                      dropTableIfExists = TRUE,
                                      createTable = TRUE,
                                      tempTable = TRUE,
-                                     oracleTempSchema = oracleTempSchema)
+                                     oracleTempSchema = oracleTempSchema,
+                                     sessionId = sessionId)
     }
   }
   
