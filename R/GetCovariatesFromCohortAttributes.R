@@ -29,6 +29,7 @@
 #' @export
 getDbCohortAttrCovariatesData <- function(connection,
                                           oracleTempSchema = NULL,
+                                          sessionId = NULL,
                                           cdmDatabaseSchema,
                                           cohortTable = "#cohort_person",
                                           cohortId = -1,
@@ -79,7 +80,8 @@ getDbCohortAttrCovariatesData <- function(connection,
                                        attr_definition_table = covariateSettings$attrDefinitionTable)
   covariateRefSql <- SqlRender::translate(sql = covariateRefSql,
                                           targetDialect = attr(connection, "dbms"),
-                                          oracleTempSchema = oracleTempSchema)
+                                          oracleTempSchema = oracleTempSchema,
+                                          sessionId = sessionId)
   covariateRef <- DatabaseConnector::querySql.ffdf(connection, covariateRefSql)
   colnames(covariateRef) <- SqlRender::snakeCaseToCamelCase(colnames(covariateRef))
   covariateRef$analysisId <- ff::ff(as.numeric(covariateSettings$analysisId), length = nrow(covariateRef))

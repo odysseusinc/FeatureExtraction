@@ -30,6 +30,7 @@
 #' @export
 getDbHdpsCovariateData <- function(connection,
                                    oracleTempSchema = NULL,
+                                   sessionId = NULL,
                                    cdmDatabaseSchema,
                                    cohortTable = "cohort_person",
                                    cohortId = -1,
@@ -138,19 +139,22 @@ getDbHdpsCovariateData <- function(connection,
   covariateSql <- "SELECT row_id, covariate_id, covariate_value FROM #cov ORDER BY covariate_id, row_id"
   covariateSql <- SqlRender::translate(sql = covariateSql,
                                        targetDialect = attr(connection, "dbms"),
-                                       oracleTempSchema = oracleTempSchema)
+                                       oracleTempSchema = oracleTempSchema,
+                                       sessionId = sessionId)
   covariates <- DatabaseConnector::querySql.ffdf(connection, covariateSql)
   covariateRefSql <- "SELECT covariate_id, covariate_name, analysis_id, concept_id  FROM #cov_ref ORDER BY covariate_id"
   covariateRefSql <- SqlRender::translate(sql = covariateRefSql,
                                           targetDialect = attr(connection, "dbms"),
-                                          oracleTempSchema = oracleTempSchema)
+                                          oracleTempSchema = oracleTempSchema,
+                                          sessionId = sessionId)
   covariateRef <- DatabaseConnector::querySql.ffdf(connection, covariateRefSql)
   
   sql <- "SELECT COUNT_BIG(*) FROM @cohort_temp_table"
   sql <- SqlRender::render(sql, cohort_temp_table = cohortTable)
   sql <- SqlRender::translate(sql = sql,
                               targetDialect = attr(connection, "dbms"),
-                              oracleTempSchema = oracleTempSchema)
+                              oracleTempSchema = oracleTempSchema,
+                              sessionId = sessionId)
   populationSize <- DatabaseConnector::querySql(connection, sql)[1, 1]
   
   delta <- Sys.time() - start

@@ -64,6 +64,7 @@
 getDbCovariateData <- function(connectionDetails = NULL,
                                connection = NULL,
                                oracleTempSchema = NULL,
+                               sessionId = NULL,
                                cdmDatabaseSchema,
                                cdmVersion = "5",
                                cohortTable = "cohort",
@@ -101,6 +102,7 @@ getDbCovariateData <- function(connectionDetails = NULL,
                            cohort_id = cohortId)
   sql <- SqlRender::translate(sql = sql,
                               targetDialect = attr(connection, "dbms"),
+                              sessionId = sessionId,
                               oracleTempSchema = oracleTempSchema)
   populationSize <- DatabaseConnector::querySql(connection, sql)[1, 1]
   if (populationSize == 0) {
@@ -121,6 +123,7 @@ getDbCovariateData <- function(connectionDetails = NULL,
         args <- list(connection = connection,
                      oracleTempSchema = oracleTempSchema,
                      cdmDatabaseSchema = cdmDatabaseSchema,
+                     sessionId = sessionId,
                      cohortTable = cohortDatabaseSchemaTable,
                      cohortId = cohortId,
                      cdmVersion = cdmVersion,
@@ -146,7 +149,7 @@ getDbCovariateData <- function(connectionDetails = NULL,
             } else if (hasData(tempCovariateData$covariatesContinuous)) {
               covariateData$covariatesContinuous <- tempCovariateData$covariatesContinuous
             }
-          } 
+          }
           covariateData$covariateRef <- ffbase::ffdfappend(covariateData$covariateRef,
                                                            ff::as.ram(tempCovariateData$covariateRef))
           covariateData$analysisRef <- ffbase::ffdfappend(covariateData$analysisRef,

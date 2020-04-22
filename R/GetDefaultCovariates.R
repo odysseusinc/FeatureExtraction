@@ -37,6 +37,7 @@
 #' @export
 getDbDefaultCovariateData <- function(connection,
                                       oracleTempSchema = NULL,
+                                      sessionId = NULL,
                                       cdmDatabaseSchema,
                                       cohortTable = "#cohort_person",
                                       cohortId = -1,
@@ -79,7 +80,8 @@ getDbDefaultCovariateData <- function(connection,
   
   sql <- SqlRender::translate(sql = todo$sqlConstruction,
                               targetDialect = attr(connection, "dbms"),
-                              oracleTempSchema = oracleTempSchema)
+                              oracleTempSchema = oracleTempSchema,
+                              sessionId = sessionId)
   profile <- (!is.null(getOption("dbProfile")) && getOption("dbProfile") == TRUE)
   DatabaseConnector::executeSql(connection, sql, profile = profile)
   
@@ -90,7 +92,8 @@ getDbDefaultCovariateData <- function(connection,
     if (!is.null(todo$sqlQueryFeatures)) {
       sql <- SqlRender::translate(sql = todo$sqlQueryFeatures,
                                   targetDialect = attr(connection, "dbms"),
-                                  oracleTempSchema = oracleTempSchema)
+                                  oracleTempSchema = oracleTempSchema,
+                                  sessionId = sessionId)
       covariates <- DatabaseConnector::querySql.ffdf(connection, sql)
       if (nrow(covariates) == 0) {
         covariates <- NULL
@@ -105,7 +108,8 @@ getDbDefaultCovariateData <- function(connection,
     if (!is.null(todo$sqlQueryContinuousFeatures)) {
       sql <- SqlRender::translate(sql = todo$sqlQueryContinuousFeatures,
                                   targetDialect = attr(connection, "dbms"),
-                                  oracleTempSchema = oracleTempSchema)
+                                  oracleTempSchema = oracleTempSchema,
+                                  sessionId = sessionId)
       covariatesContinuous <- DatabaseConnector::querySql.ffdf(connection, sql)
       if (nrow(covariatesContinuous) == 0) {
         covariatesContinuous <- NULL
@@ -119,14 +123,16 @@ getDbDefaultCovariateData <- function(connection,
     # Covariate reference
     sql <- SqlRender::translate(sql = todo$sqlQueryFeatureRef,
                                 targetDialect = attr(connection, "dbms"),
-                                oracleTempSchema = oracleTempSchema)
+                                oracleTempSchema = oracleTempSchema,
+                                sessionId = sessionId)
     covariateRef <- DatabaseConnector::querySql.ffdf(connection, sql)
     colnames(covariateRef) <- SqlRender::snakeCaseToCamelCase(colnames(covariateRef))
     
     # Analysis reference
     sql <- SqlRender::translate(sql = todo$sqlQueryAnalysisRef,
                                 targetDialect = attr(connection, "dbms"),
-                                oracleTempSchema = oracleTempSchema)
+                                oracleTempSchema = oracleTempSchema,
+                                sessionId = sessionId);
     analysisRef <- DatabaseConnector::querySql.ffdf(connection, sql)
     colnames(analysisRef) <- SqlRender::snakeCaseToCamelCase(colnames(analysisRef))
     
@@ -150,7 +156,8 @@ getDbDefaultCovariateData <- function(connection,
       sql <- convertQuery(todo$sqlQueryFeatures, targetDatabaseSchema, targetCovariateTable)
       sql <- SqlRender::translate(sql = sql,
                                   targetDialect = attr(connection, "dbms"),
-                                  oracleTempSchema = oracleTempSchema)
+                                  oracleTempSchema = oracleTempSchema,
+                                  sessionId = sessionId)
       DatabaseConnector::executeSql(connection, sql, progressBar = FALSE, reportOverallTime = FALSE)
     }
     
@@ -159,7 +166,8 @@ getDbDefaultCovariateData <- function(connection,
       sql <- convertQuery(todo$sqlQueryFeatureRef, targetDatabaseSchema, targetCovariateRefTable)
       sql <- SqlRender::translate(sql = sql,
                                   targetDialect = attr(connection, "dbms"),
-                                  oracleTempSchema = oracleTempSchema)
+                                  oracleTempSchema = oracleTempSchema,
+                                  sessionId = sessionId)
       DatabaseConnector::executeSql(connection, sql, progressBar = FALSE, reportOverallTime = FALSE)
     }
     
@@ -168,7 +176,8 @@ getDbDefaultCovariateData <- function(connection,
       sql <- convertQuery(todo$sqlQueryAnalysisRef, targetDatabaseSchema, targetAnalysisRefTable)
       sql <- SqlRender::translate(sql = sql,
                                   targetDialect = attr(connection, "dbms"),
-                                  oracleTempSchema = oracleTempSchema)
+                                  oracleTempSchema = oracleTempSchema,
+                                  sessionId = sessionId)
       DatabaseConnector::executeSql(connection, sql, progressBar = FALSE, reportOverallTime = FALSE)
     }
     delta <- Sys.time() - start
@@ -178,7 +187,8 @@ getDbDefaultCovariateData <- function(connection,
   # Drop temp tables
   sql <- SqlRender::translate(sql = todo$sqlCleanup,
                               targetDialect = attr(connection, "dbms"),
-                              oracleTempSchema = oracleTempSchema)
+                              oracleTempSchema = oracleTempSchema,
+                              sessionId = sessionId)
   DatabaseConnector::executeSql(connection, sql, progressBar = FALSE, reportOverallTime = FALSE)
   if (length(todo$tempTables) != 0) {
     for (i in 1:length(todo$tempTables)) {
@@ -186,7 +196,8 @@ getDbDefaultCovariateData <- function(connection,
       sql <- SqlRender::render(sql, table = names(todo$tempTables)[i])
       sql <- SqlRender::translate(sql = sql,
                                   targetDialect = attr(connection, "dbms"),
-                                  oracleTempSchema = oracleTempSchema)
+                                  oracleTempSchema = oracleTempSchema,
+                                  sessionId = sessionId)
       DatabaseConnector::executeSql(connection, sql, progressBar = FALSE, reportOverallTime = FALSE)
     }
   }
