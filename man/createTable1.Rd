@@ -4,10 +4,17 @@
 \alias{createTable1}
 \title{Create a table 1}
 \usage{
-createTable1(covariateData1, covariateData2 = NULL,
+createTable1(
+  covariateData1,
+  covariateData2 = NULL,
   specifications = getDefaultTable1Specifications(),
-  output = "two columns", percentDigits = 1, valueDigits = 1,
-  stdDiffDigits = 2)
+  output = "two columns",
+  showCounts = FALSE,
+  showPercent = TRUE,
+  percentDigits = 1,
+  valueDigits = 1,
+  stdDiffDigits = 2
+)
 }
 \arguments{
 \item{covariateData1}{The covariate data of the cohort to be included in the table.}
@@ -19,6 +26,10 @@ cohorts.}
 
 \item{output}{The output format for the table. Options are \code{output = "two columns"},
 \code{output = "one column"}, or \code{output = "list"}.}
+
+\item{showCounts}{Show the number of cohort entries having the binary covariate?}
+
+\item{showPercent}{Show the percentage of cohort entries having the binary covariate?}
 
 \item{percentDigits}{Number of digits to be used for percentages.}
 
